@@ -128,6 +128,20 @@ export class MarkdownPage implements File, Linkbearing, Indexable {
         }
     }
 
+    /** All equation blocks whose position falls within [lineStart, lineEnd], sorted by line. Used for equations inside callouts. */
+    public getEquationBlocksInRange(lineStart: number, lineEnd: number): EquationBlock[] {
+        const out: EquationBlock[] = [];
+        for (const section of this.$sections) {
+            for (const block of section.$blocks) {
+                if (EquationBlock.isEquationBlock(block) && block.$position.start >= lineStart && block.$position.end <= lineEnd) {
+                    out.push(block);
+                }
+            }
+        }
+        out.sort((a, b) => a.$position.start - b.$position.start);
+        return out;
+    }
+
     static isMarkdownPage(object: Indexable | undefined): object is MarkdownPage {
         return object !== undefined && '$typename' in object && (object as any).$typename === 'Page';
     }

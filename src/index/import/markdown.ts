@@ -119,6 +119,39 @@ export function markdownImport(
             } as JsonEquationBlock);
         } else if (theoremCalloutSettings) {
 
+            // Create equation blocks for display math inside the callout so they get numbers
+            const calloutBlockText = getBlockText(markdown, block);
+            const equationsInCallout = findDisplayMathInCalloutBlock(
+                calloutBlockText,
+                start,
+                block.position.start.offset
+            );
+            for (const eq of equationsInCallout) {
+                const tagMatch = eq.mathText.match(/\\tag\{(.*)\}/);
+                const metadata: Record<string, string | undefined> = {};
+                for (const line of eq.mathText.split('\n')) {
+                    const { comment } = parseLatexComment(line);
+                    if (!comment) continue;
+                    Object.assign(metadata, parseYamlLike(comment));
+                }
+                const pos = {
+                    start: { line: eq.lineStart, col: 0, offset: eq.startOffset },
+                    end: { line: eq.lineEnd, col: 0, offset: eq.endOffset },
+                };
+                blocks.set(eq.lineStart, {
+                    $ordinal: blockOrdinal++,
+                    $position: { start: eq.lineStart, end: eq.lineEnd },
+                    $pos: pos,
+                    $links: [],
+                    $blockId: undefined,
+                    $manualTag: tagMatch?.[1] ?? null,
+                    $mathText: eq.mathText,
+                    $type: "equation",
+                    $label: metadata.label,
+                    $display: metadata.display,
+                } as JsonEquationBlock);
+            }
+
             // Parse additional metadata from Markdown comments
             const contentText = lines.slice(start + 1, end + 1).join('\n');
             const commentLines = parseMarkdownComment(contentText);
@@ -224,4 +257,43 @@ function addLink(target: Link[], incoming: Link) {
 
 function getBlockText(data: string, block: SectionCache) {
     return data.slice(block.position.start.offset, block.position.end.offset);
+}
+
+/**
+ * Find all display math ($$...$$) in callout block content and return their positions and math text.
+ * Used to create equation blocks for equations inside theorem callouts so they get numbers.
+ */
+function findDisplayMathInCalloutBlock(
+    blockText: string,
+    blockStartLine: number,
+    blockStartOffset: number
+): { lineStart: number; lineEnd: number; startOffset: number; endOffset: number; mathText: string }[] {
+    const results: { lineStart: number; lineEnd: number; startOffset: number; endOffset: number; mathText: string }[] = [];
+    const delimiter = '$$';
+    let i = 0;
+    while ((i = blockText.indexOf(delimiter, i)) !== -1) {
+        const startDelim = i;
+        i += delimiter.length;
+        const endDelim = blockText.indexOf(delimiter, i);
+        if (endDelim === -1) break;
+        let mathText = blockText.slice(i, endDelim).trim();
+        // Strip callout line prefix "> " from each line so LaTeX is clean
+        mathText = mathText.split('\n').map((line) => line.replace(/^>\s?/, '')).join('\n').trim();
+        const endOffset = endDelim + delimiter.length;
+
+        const textBeforeStart = blockText.slice(0, startDelim);
+        const textBeforeEnd = blockText.slice(0, endDelim);
+        const lineStart = blockStartLine + (textBeforeStart.split('\n').length - 1);
+        const lineEnd = blockStartLine + (textBeforeEnd.split('\n').length - 1);
+
+        results.push({
+            lineStart,
+            lineEnd,
+            startOffset: blockStartOffset + startDelim,
+            endOffset: blockStartOffset + endOffset,
+            mathText,
+        });
+        i = endOffset;
+    }
+    return results;
 }

@@ -4,7 +4,7 @@
 
 import { EditorState, StateEffect } from '@codemirror/state';
 import { PluginValue, ViewPlugin, EditorView, ViewUpdate } from '@codemirror/view';
-import { EquationBlock, MarkdownBlock, MarkdownPage } from 'index/typings/markdown';
+import { EquationBlock, MarkdownBlock, MarkdownPage, TheoremCalloutBlock } from 'index/typings/markdown';
 import LatexReferencer from 'main';
 import { MarkdownView, TFile, editorInfoField, finishRenderMath } from 'obsidian';
 import { resolveSettings } from 'utils/plugin';
@@ -79,7 +79,14 @@ export function createEquationNumberPlugin(plugin: LatexReferencer) {
         }
 
         async updateEquationNumber(view: EditorView, page: MarkdownPage) {
-            const mjxContainerElements = view.contentDOM.querySelectorAll<HTMLElement>(':scope > .cm-embed-block.math > mjx-container.MathJax[display="true"]');
+            // Top-level display math (original selector)
+            const topLevelMjx = view.contentDOM.querySelectorAll<HTMLElement>(':scope > .cm-embed-block.math > mjx-container.MathJax[display="true"]');
+            // Display math inside callouts
+            const calloutMjx = view.contentDOM.querySelectorAll<HTMLElement>('.callout mjx-container.MathJax[display="true"]');
+            const mjxContainerElements = Array.from(topLevelMjx); // avoid duplicate if same node matches both
+            for (const el of calloutMjx) {
+                if (!mjxContainerElements.includes(el)) mjxContainerElements.push(el);
+            }
 
             for (const mjxContainerEl of mjxContainerElements) {
 
@@ -96,13 +103,29 @@ export function createEquationNumberPlugin(plugin: LatexReferencer) {
                 } catch (err) {
                     block = page.getBlockByOffset(pos);
                 }
-                if (!(block instanceof EquationBlock)) continue;
+
+                let equation: EquationBlock | null = null;
+                if (block instanceof EquationBlock) {
+                    equation = block;
+                } else if (block && TheoremCalloutBlock.isTheoremCalloutBlock(block)) {
+                    // Equation is inside a theorem callout: match by DOM order
+                    const calloutEl = mjxContainerEl.closest<HTMLElement>('.callout');
+                    if (calloutEl) {
+                        const mjxInCallout = calloutEl.querySelectorAll<HTMLElement>('mjx-container.MathJax[display="true"]');
+                        const ourIndex = Array.from(mjxInCallout).indexOf(mjxContainerEl);
+                        if (ourIndex >= 0) {
+                            const equationsInRange = page.getEquationBlocksInRange(block.$position.start, block.$position.end);
+                            equation = equationsInRange[ourIndex] ?? null;
+                        }
+                    }
+                }
+                if (!equation) continue;
 
                 // only update if necessary
-                if (mjxContainerEl.getAttribute('data-equation-print-name') !== block.$printName) {
-                    replaceMathTag(mjxContainerEl, block, this.settings);
+                if (mjxContainerEl.getAttribute('data-equation-print-name') !== equation.$printName) {
+                    replaceMathTag(mjxContainerEl, equation, this.settings);
                 }
-                if (block.$printName !== null) mjxContainerEl.setAttribute('data-equation-print-name', block.$printName);
+                if (equation.$printName !== null) mjxContainerEl.setAttribute('data-equation-print-name', equation.$printName);
                 else mjxContainerEl.removeAttribute('data-equation-print-name');
             }
             // DON'T FOREGET THIS CALL!!

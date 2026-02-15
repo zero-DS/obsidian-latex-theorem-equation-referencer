@@ -7,7 +7,7 @@ import { App, MarkdownRenderChild, finishRenderMath, MarkdownPostProcessorContex
 
 import LatexReferencer from 'main';
 import { resolveSettings } from 'utils/plugin';
-import { EquationBlock, MarkdownPage } from "index/typings/markdown";
+import { EquationBlock, MarkdownPage, TheoremCalloutBlock } from "index/typings/markdown";
 import { MathIndex } from "index/math-index";
 import { isPdfExport, resolveLinktext } from "utils/obsidian";
 import { replaceMathTag } from "./common";
@@ -130,9 +130,19 @@ export class EquationNumberRenderer extends MarkdownRenderChild {
         const page = this.index.getMarkdownPage(this.file.path);
         if (!info || !page) return null;
 
-        // get block ID
         const block = page.getBlockByLineNumber(info.lineStart + lineOffset) ?? page.getBlockByLineNumber(info.lineEnd + lineOffset);
         if (EquationBlock.isEquationBlock(block)) return block;
+
+        // Equation is inside a callout: getSectionInfo returns the callout block. Match by DOM order.
+        if (block && TheoremCalloutBlock.isTheoremCalloutBlock(block)) {
+            const calloutEl = this.containerEl.closest<HTMLElement>('.callout');
+            if (!calloutEl) return null;
+            const mjxInCallout = calloutEl.querySelectorAll<HTMLElement>('mjx-container.MathJax[display="true"]');
+            const ourIndex = Array.from(mjxInCallout).indexOf(this.containerEl);
+            if (ourIndex < 0) return null;
+            const equationsInRange = page.getEquationBlocksInRange(info.lineStart, info.lineEnd);
+            return equationsInRange[ourIndex] ?? null;
+        }
 
         return null;
     }
