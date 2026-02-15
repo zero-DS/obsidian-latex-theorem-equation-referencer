@@ -15,7 +15,7 @@ import { createEquationNumberPlugin } from 'equations/live-preview';
 import { getMarkdownPreviewViewEl, getMarkdownSourceViewEl, isPluginOlderThan } from 'utils/obsidian';
 import { getProfile, staticifyEqNumber, insertDisplayMath, insertTheoremCallout, insertProof } from 'utils/plugin';
 import { MathIndexManager } from 'index/manager';
-import { DependencyNotificationModal, MigrationModal, PluginSplitNoticeModal, RenameNoticeModal } from 'notice';
+import { DependencyNotificationModal, MigrationModal, RenameNoticeModal } from 'notice';
 import { LinkAutocomplete } from 'search/editor-suggest';
 import { MathSearchModal } from 'search/modal';
 import { TheoremCalloutInfo, createTheoremCalloutsField } from 'theorem-callouts/state-field';
@@ -62,10 +62,6 @@ export default class LatexReferencer extends Plugin {
 
 			if (v1 || version.localeCompare('2.2.0', undefined, { numeric: true }) < 0) {
 				new RenameNoticeModal(this).open();
-			}
-
-			if (v1 || version.localeCompare('2.3.0', undefined, { numeric: true }) < 0) {
-				new PluginSplitNoticeModal(this).open();
 			}
 
 			if (!dependenciesOK || v1) {
