@@ -1,5 +1,5 @@
 import { EquationBlock } from 'index/typings/markdown';
-import { TFile, HeadingSubpathResult, BlockSubpathResult, App } from 'obsidian';
+import { TFile, HeadingSubpathResult, BlockSubpathResult, FootnoteSubpathResult, App } from 'obsidian';
 import * as MathLinks from 'obsidian-mathlinks';
 
 import LatexReferencer from 'main';
@@ -20,7 +20,7 @@ export class CleverefProvider extends MathLinks.Provider {
     provide(
         parsedLinktext: { path: string; subpath: string; },
         targetFile: TFile | null,
-        targetSubpathResult: HeadingSubpathResult | BlockSubpathResult | null,
+        targetSubpathResult: HeadingSubpathResult | BlockSubpathResult | FootnoteSubpathResult | null,
     ): string | null {
         const { path, subpath } = parsedLinktext;
         if (targetFile === null) return null;

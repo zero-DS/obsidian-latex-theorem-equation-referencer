@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import { BlockSubpathResult, CachedMetadata, Component, HeadingSubpathResult, MarkdownPostProcessorContext, MarkdownView, Modifier, Platform, Plugin, Pos, SectionCache, parseLinktext, resolveSubpath } from "obsidian";
+import { BlockSubpathResult, CachedMetadata, Component, FootnoteSubpathResult, HeadingSubpathResult, MarkdownPostProcessorContext, MarkdownView, Modifier, Platform, Plugin, Pos, SectionCache, parseLinktext, resolveSubpath } from "obsidian";
 import { App, TAbstractFile, TFile, TFolder } from "obsidian";
 import { locToEditorPosition } from 'utils/editor';
 import { LeafArgs } from 'typings/type';
@@ -120,7 +120,7 @@ export function generateBlockID(cache: CachedMetadata, length: number = 6): stri
     return id;
 }
 
-export function resolveLinktext(app: App, linktext: string, sourcePath: string): { file: TFile, subpathResult: HeadingSubpathResult | BlockSubpathResult | null } | null {
+export function resolveLinktext(app: App, linktext: string, sourcePath: string): { file: TFile, subpathResult: HeadingSubpathResult | BlockSubpathResult | FootnoteSubpathResult | null } | null {
     const { path, subpath } = parseLinktext(linktext);
     const targetFile = app.metadataCache.getFirstLinkpathDest(path, sourcePath);
     if (!targetFile) return null;
