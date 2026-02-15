@@ -1,3 +1,4 @@
+/** borrowed from WANGshouming4937/obsidian-latex-theorem-equation-referencer*/
 /**
  * Display equation numbers in reading view, embeds, hover page preview, and PDF export.
  */
@@ -37,7 +38,14 @@ export const createEquationNumberProcessor = (plugin: LatexReferencer) => async 
 function preprocessForPdfExport(plugin: LatexReferencer, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 
     try {
-        const topLevelMathDivs = el.querySelectorAll<HTMLElement>(':scope > div.math.math-block > mjx-container.MathJax[display="true"]');
+        // 使用更宽松的选择器来匹配PDF导出环境中的公式元素
+        let topLevelMathDivs = el.querySelectorAll<HTMLElement>(':scope > div.math.math-block > mjx-container.MathJax[display="true"]');
+        
+        // 如果没有找到元素，尝试更宽松的选择器
+        if (topLevelMathDivs.length === 0) {
+            console.log(`${plugin.manifest.name}: PDF Export - Trying alternative selector for math elements`);
+            topLevelMathDivs = el.querySelectorAll<HTMLElement>('mjx-container.MathJax[display="true"]');
+        }
 
         const page = plugin.indexManager.index.getMarkdownPage(ctx.sourcePath);
         if (!page) {
@@ -45,22 +53,53 @@ function preprocessForPdfExport(plugin: LatexReferencer, el: HTMLElement, ctx: M
             return;
         }
 
-        let equationIndex = 0;
+        // First collect all equation blocks
+        const equationBlocks = [];
         for (const section of page.$sections) {
             for (const block of section.$blocks) {
-                if (!EquationBlock.isEquationBlock(block)) continue;
-
-                const div = topLevelMathDivs[equationIndex++];
-                if (block.$printName) div.setAttribute('data-equation-id', block.$id);
+                if (EquationBlock.isEquationBlock(block)) {
+                    equationBlocks.push(block);
+                }
             }
         }
 
-        if (topLevelMathDivs.length != equationIndex) {
-            new Notice(`${plugin.manifest.name}: Something unexpected occured while preprocessing for PDF export. Equation numbers might not be displayed properly in the exported PDF.`);
+        // Add debug logging
+        console.log(`${plugin.manifest.name}: PDF Export - Found ${equationBlocks.length} equation blocks and ${topLevelMathDivs.length} DOM elements`);
+        
+        // Now match equation blocks with DOM elements
+        // 为了确保匹配的准确性，我们假设DOM中的公式顺序与方程块的顺序一致
+        // 因为我们已经在preprocessForPdfExport函数中收集了所有方程块
+        if (equationBlocks.length === topLevelMathDivs.length) {
+            // 如果数量匹配，直接按顺序匹配
+            for (let i = 0; i < equationBlocks.length; i++) {
+                const block = equationBlocks[i];
+                const div = topLevelMathDivs[i];
+                
+                // 为所有公式设置data-equation-id属性
+                div.setAttribute('data-equation-id', block.$id);
+                
+                if (!block.$printName) {
+                    console.log(`${plugin.manifest.name}: PDF Export - Setting ID for block ${block.$id} without printName`);
+                } else {
+                    console.log(`${plugin.manifest.name}: PDF Export - Set data-equation-id=${block.$id} for DOM element ${i}`);
+                }
+            }
+        } else {
+            // 如果数量不匹配，记录警告但仍然尝试匹配
+            console.log(`${plugin.manifest.name}: PDF Export - Warning: Mismatch between equation blocks (${equationBlocks.length}) and DOM elements (${topLevelMathDivs.length})`);
+            
+            // 只匹配可用的元素
+            const minCount = Math.min(equationBlocks.length, topLevelMathDivs.length);
+            for (let i = 0; i < minCount; i++) {
+                const block = equationBlocks[i];
+                const div = topLevelMathDivs[i];
+                div.setAttribute('data-equation-id', block.$id);
+            }
         }
     } catch (err) {
-        new Notice(`${plugin.manifest.name}: Something unexpected occured while preprocessing for PDF export. See the developer console for the details. Equation numbers might not be displayed properly in the exported PDF.`);
-        console.error(err);
+        const msg = `${plugin.manifest.name}: Error during PDF export preprocessing. See console for details.`;
+        console.error(msg, err);
+        new Notice(msg);
     }
 }
 

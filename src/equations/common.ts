@@ -1,3 +1,4 @@
+/** borrowed from WANGshouming4937/obsidian-latex-theorem-equation-referencer*/
 import { EquationBlock } from "index/typings/markdown";
 import { finishRenderMath, renderMath } from "obsidian";
 import { MathContextSettings } from "settings/settings";
@@ -8,18 +9,18 @@ import { parseLatexComment } from "utils/parse";
 export function replaceMathTag(displayMathEl: HTMLElement, equation: EquationBlock, settings: Required<MathContextSettings>) {
     if (equation.$manualTag) return; // respect a tag (\tag{...}) manually set by the user
 
-    const taggedText = getMathTextWithTag(equation, settings.lineByLine);
-    if (taggedText) {
-        const mjxContainerEl = renderMath(taggedText, true);
-        if (equation.$printName !== null) {
+    // For numbered equations, add the equation number
+    if (equation.$printName !== null) {
+        const taggedText = getMathTextWithTag(equation, settings.lineByLine);
+        if (taggedText) {
+            const mjxContainerEl = renderMath(taggedText, true);
             displayMathEl.setAttribute('width', 'full');
             displayMathEl.style.cssText = mjxContainerEl.style.cssText;
-        } else {
-            displayMathEl.removeAttribute('width');
-            displayMathEl.removeAttribute('style');
+            displayMathEl.replaceChildren(...mjxContainerEl.childNodes);
         }
-        displayMathEl.replaceChildren(...mjxContainerEl.childNodes);
-    }
+    } 
+    // For unnumbered equations, do NOT modify the content
+    // This ensures that unnumbered equations remain unchanged during PDF export
 }
 
 export function getMathTextWithTag(equation: EquationBlock, lineByLine?: boolean): string | undefined {
