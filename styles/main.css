@@ -53,8 +53,11 @@
 }
 
 
-.math-booster-end-proof {
-    float: right;
+.math-booster-end-proof,
+.latex-referencer-end-proof {
+    display: block;
+    text-align: right;
+    margin-bottom: 1em;
 }
 
 .math-booster-add-profile {
